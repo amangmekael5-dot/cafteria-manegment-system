@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Student Cafeteria Pass - Dire Dawa University</title>
+  <meta name="theme-color" content="#154c79" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DDU Pass">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/style.css">
+  <script>
+    (function() {
+      const s = localStorage.getItem("ddu_theme");
+      const p = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (s === "dark" || (!s && p)) document.documentElement.setAttribute("data-theme", "dark");
+    })();
+  </script>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="/logo.png" alt="Dire Dawa University Logo" class="brand-logo">
+      <div class="brand-text">
+        <span class="brand-univ">Dire Dawa University · ድሬዳዋ ዩኒቨርሲቲ</span>
+        <h1 class="brand-title">Student Cafeteria Pass</h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="alt back-btn" onclick="goBack()" title="Go back (Backspace)">← Back</button>
+      <span id="mealPill" class="status-pill pill-closed">Checking schedule...</span>
+      <button class="alt theme-toggle-btn" onclick="toggleTheme()">🌙 Dark</button>
+    </div>
+  </header>
+
+  <div class="card">
+    <label for="stuId" style="font-weight: 700; display: block; margin-bottom: 8px;">Enter Your Student ID:</label>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <input id="stuId" placeholder="e.g. DDU1001 or DDU1500860" style="flex: 1; min-width: 170px; text-transform: uppercase; font-weight: 600; font-size: 1.05rem;">
+      <button id="loadBtn" style="padding: 10px 20px;">Open My Pass</button>
+    </div>
+    <div id="stuMsg" class="muted" style="margin-top: 8px;"></div>
+  </div>
+
+  <div id="cardSection" class="card hide">
+    <div class="id-card">
+      <div class="id-card-header">
+        <img src="/logo.png" alt="DDU Seal" style="width: 24px; height: 24px; object-fit: contain;">
+        <span>Dire Dawa University · Student Meal Pass</span>
+      </div>
+      <div id="cardName" class="id-card-name">Student Name</div>
+      <div id="cardId" class="id-card-id">DDU1001</div>
+      <div id="cardDept" class="id-card-dept">Department · Year</div>
+
+      <div class="qr-box">
+        <canvas id="qrCanvas" width="200" height="200"></canvas>
+      </div>
+      <div class="muted" style="margin-bottom: 14px; font-weight: 500;">Show this QR code to the Cafeteria Scanner</div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button id="broadcastBtn" style="background: #2563eb; font-size: 1.05rem; padding: 14px;">
+          📡 Broadcast Presence (Nearby Check-in)
+        </button>
+        <div id="broadcastStatus" class="res info hide"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <strong style="font-size: 1.05rem;">Cafeteria Meal Schedule:</strong>
+    <div class="stat-grid" style="margin-top: 10px;">
+      <div class="stat-card">
+        <div class="stat-label">Breakfast</div>
+        <div style="font-weight: 700; margin-top: 4px;">05:30 – 09:30</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Lunch</div>
+        <div style="font-weight: 700; margin-top: 4px;">11:00 – 14:30</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Dinner</div>
+        <div style="font-weight: 700; margin-top: 4px;">17:00 – 20:30</div>
+      </div>
+    </div>
+    <p class="muted" style="margin-top: 12px; line-height: 1.5;">
+      💡 <strong>Tip:</strong> If you have an RFID/NFC student card, you can also tap your physical card directly against the cafeteria checker's phone!
+    </p>
+  </div>
+
+  <!-- QR generator library from CDN with lightweight canvas fallback -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="/app.js"></script>
+  <script>
+    let broadcastTimer = null;
+    let currentStudent = null;
+
+    // Check meal schedule
+    fetch("/api/meals").then(r => r.json()).then(data => {
+      const p = $("mealPill");
+      if (data.current) {
+        p.className = "status-pill pill-open";
+        p.innerHTML = `<span class="pulse-dot green"></span> Serving: ${data.current}`;
+      } else {
+        p.className = "status-pill pill-closed";
+        p.innerHTML = `<span class="pulse-dot amber"></span> Closed (${data.serverTime})`;
+      }
+    }).catch(() => {});
+
+    function renderQR(text) {
+      const cv = $("qrCanvas");
+      if (window.QRCode) {
+        const box = cv.parentElement;
+        box.innerHTML = "";
+        new QRCode(box, {
+          text: text,
+          width: 200,
+          height: 200,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } else {
+        const ctx = cv.getContext("2d");
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, 200, 200);
+        ctx.fillStyle = "#111"; ctx.font = "bold 16px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(text, 100, 105);
+      }
+    }
+
+    async function loadStudentPass(id) {
+      if (!id) return;
+      id = id.trim().toUpperCase();
+      $("stuMsg").textContent = "Loading student record...";
+
+      try {
+        const res = await fetch("/api/nearby/broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id })
+        });
+        const d = await res.json();
+        if (!res.ok && !d.blocked && !d.non_cafe) {
+          $("stuMsg").textContent = d.error || "Student ID not found in registry";
+          return;
+        }
+
+        currentStudent = d.student;
+        localStorage.setItem("ddu_stu_id", id);
+        $("stuMsg").textContent = "";
+
+        $("cardName").textContent = currentStudent.name;
+        $("cardId").textContent = currentStudent.id;
+        $("cardDept").textContent = [currentStudent.department, currentStudent.year && ("Year " + currentStudent.year)].filter(Boolean).join(" · ") || "Student";
+        $("cardSection").classList.remove("hide");
+
+        renderQR(currentStudent.id);
+
+        const isNonCafe = d.non_cafe || currentStudent.cafe_status === "non_cafe";
+
+        if (isNonCafe) {
+          const bs = $("broadcastStatus");
+          bs.className = "res bad";
+          bs.classList.remove("hide");
+          bs.innerHTML = `
+            <div style="font-size: 1.15rem; font-weight: bold; margin-bottom: 4px;">⛔ YOU ARE NON-CAFÉ!</div>
+            <div style="margin-top: 4px; font-weight: 500;">You are registered as a <strong>Non-Café student</strong> (off-campus allowance). You are not authorized to enter the cafeteria or take campus meals.</div>
+          `;
+          $("broadcastBtn").disabled = true;
+          $("broadcastBtn").style.opacity = "0.5";
+          $("broadcastBtn").textContent = "Non-Café: Entry Not Allowed";
+          return;
+        }
+
+        if (d.blocked || currentStudent.blocked) {
+          const bs = $("broadcastStatus");
+          bs.className = "res bad";
+          bs.classList.remove("hide");
+          bs.innerHTML = `
+            <div style="font-size: 1.15rem; font-weight: bold; margin-bottom: 4px;">⛔ CAFETERIA PASS BLOCKED!</div>
+            <div><strong>Reason:</strong> ${d.reason || currentStudent.reason || "Attempted duplicate meal"}</div>
+            <div style="margin-top: 6px; font-weight: 500;">Feeding is suspended for all meals (Breakfast, Lunch, Dinner). You must visit the Cafeteria Admin to resolve this issue.</div>
+          `;
+          $("broadcastBtn").disabled = true;
+          $("broadcastBtn").style.opacity = "0.5";
+          $("broadcastBtn").textContent = "Pass Suspended by Admin";
+          return;
+        }
+
+        $("broadcastBtn").disabled = false;
+        $("broadcastBtn").style.opacity = "1";
+        $("broadcastBtn").textContent = "📡 Broadcast Presence (Nearby Check-in)";
+        startBroadcast(currentStudent.id);
+      } catch (e) {
+        $("stuMsg").textContent = "Error: " + e.message;
+      }
+    }
+
+    async function startBroadcast(id) {
+      try {
+        const res = await fetch("/api/nearby/broadcast", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          const bs = $("broadcastStatus");
+          bs.classList.remove("hide");
+          bs.innerHTML = `🟢 <strong>Broadcasting Nearby Presence!</strong><br>The cafeteria checker can detect you on their radar. Wait for them to tap check-in, or show your QR code.`;
+        }
+      } catch {}
+
+      if (broadcastTimer) clearInterval(broadcastTimer);
+      broadcastTimer = setInterval(() => {
+        if (currentStudent) {
+          fetch("/api/nearby/broadcast", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: currentStudent.id })
+          }).catch(() => {});
+        }
+      }, 60000);
+    }
+
+    $("loadBtn").onclick = () => loadStudentPass($("stuId").value);
+    $("stuId").onkeydown = (e) => { if (e.key === "Enter") $("loadBtn").click(); };
+    $("broadcastBtn").onclick = () => {
+      if (currentStudent) startBroadcast(currentStudent.id);
+    };
+
+    const saved = localStorage.getItem("ddu_stu_id");
+    if (saved) {
+      $("stuId").value = saved;
+      loadStudentPass(saved);
+    }
+  </script>
+</body>
+</html>

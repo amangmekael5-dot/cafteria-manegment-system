@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cafeteria Scanner - Dire Dawa University</title>
+  <meta name="theme-color" content="#154c79" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DDU Scanner">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/style.css">
+  <script>
+    (function() {
+      const s = localStorage.getItem("ddu_theme");
+      const p = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (s === "dark" || (!s && p)) document.documentElement.setAttribute("data-theme", "dark");
+    })();
+  </script>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="/logo.png" alt="Dire Dawa University Logo" class="brand-logo">
+      <div class="brand-text">
+        <span class="brand-univ">Dire Dawa University</span>
+        <h1 class="brand-title">Cafeteria Scanner</h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="alt back-btn" onclick="goBack()" title="Go back (Backspace)">← Back</button>
+      <span id="who" class="muted" style="font-weight: 600;"></span>
+      <button class="alt theme-toggle-btn" onclick="toggleTheme()">🌙 Dark</button>
+      <a href="/student" target="_blank" style="font-size: 0.88rem; text-decoration: none; color: var(--primary); font-weight: 600; padding: 7px 10px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border-color);">
+        📱 Pass
+      </a>
+      <button class="alt" onclick="logout()">Log out</button>
+    </div>
+  </header>
+
+  <!-- Checker Door Station & Privacy Isolation Bar -->
+  <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 12px 16px; margin-bottom: 12px; border-left: 4px solid var(--primary);">
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <span style="font-size: 1.3rem;">🚪</span>
+      <div>
+        <label for="doorStationSelect" style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block;">Your Assigned Door Station:</label>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+          <select id="doorStationSelect" onchange="onDoorStationChange(this.value)" style="font-weight: 700; font-size: 0.95rem; padding: 6px 12px; margin: 0;">
+            <option value="Door 1 - Main Entrance">Door 1 - Main Entrance</option>
+            <option value="Door 2 - East Wing">Door 2 - East Wing</option>
+            <option value="Door 3 - West Wing">Door 3 - West Wing</option>
+            <option value="Door 4 - North Gate">Door 4 - North Gate</option>
+            <option value="Door 5 - South Gate">Door 5 - South Gate</option>
+            <option value="Special / Staff Gate">Special / Staff Gate</option>
+          </select>
+          <span class="status-pill pill-open" style="font-size: 0.76rem; padding: 3px 8px; font-weight: 700;">
+            🔒 Isolated Log View
+          </span>
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span class="muted" style="font-size: 0.88rem; font-weight: 600;">Checker: <strong id="checkerName" style="color: var(--text-main);">-</strong></span>
+    </div>
+  </div>
+
+  <!-- Meal status bar & Meal Override for testing/off-hours -->
+  <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 16px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span id="mealBadge" class="status-pill pill-closed">
+        <span class="pulse-dot amber"></span> Checking meal...
+      </span>
+      <span id="serverTime" class="muted"></span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <label for="mealOverride" class="muted" style="font-size: 0.85rem; font-weight: 600;">Meal mode:</label>
+      <select id="mealOverride" style="padding: 6px 10px; font-size: 0.88rem;">
+        <option value="">Auto (Current Schedule)</option>
+        <option value="Breakfast">Breakfast (05:30 - 09:30)</option>
+        <option value="Lunch">Lunch (11:00 - 14:30)</option>
+        <option value="Dinner">Dinner (17:00 - 20:30)</option>
+        <option value="Test / Extra">Test / Off-hours Check-in</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="secure" class="res warn hide">
+    ⚠️ Camera, Web NFC, and Bluetooth require an HTTPS connection or localhost. If accessing from your phone, ensure you open the HTTPS tunnel link.
+  </div>
+
+  <!-- Mode Selector Tabs -->
+  <div class="tabs">
+    <button id="tab-cam" class="on">📷 Camera / QR</button>
+    <button id="tab-nfc">🏷️ NFC Tap</button>
+    <button id="tab-nearby">📡 Nearby Scan</button>
+    <button id="tab-manual">⌨️ Manual / Gun</button>
+  </div>
+
+  <!-- Panel: Camera QR & Barcode -->
+  <div id="panel-cam" class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px;">
+      <div>
+        <button id="btnCamToggle">Start Camera</button>
+        <button id="btnCamFlip" class="alt hide">🔄 Flip Camera</button>
+      </div>
+      <span id="camStatus" class="muted">Camera idle</span>
+    </div>
+
+    <div id="videoContainer" class="video-wrap hide">
+      <video id="vid" playsinline muted></video>
+      <div class="viewfinder"></div>
+      <canvas id="cv"></canvas>
+    </div>
+  </div>
+
+  <!-- Panel: NFC Tap -->
+  <div id="panel-nfc" class="card hide">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px;">
+      <button id="btnNfcToggle">Start NFC Tap Listening</button>
+      <span id="nfcStatusText" class="muted">NFC idle</span>
+    </div>
+
+    <div id="nfcActiveBox" class="res ok hide" style="text-align: center; padding: 22px;">
+      <span class="pulse-dot green" style="width: 14px; height: 14px; margin-right: 8px;"></span>
+      <strong style="font-size: 1.1rem;">NFC Reader Ready!</strong><br>
+      <span style="font-weight: 400; font-size: 0.95rem;">Hold the student's RFID/NFC card to the back of the device.</span>
+    </div>
+
+    <p class="muted" style="margin-top: 10px;">
+      Supports university NFC student cards, Mifare/ISO tags, and smartphones broadcasting digital passes.
+    </p>
+  </div>
+
+  <!-- Panel: Nearby Scan (Bluetooth BLE + Live Radar + Quick Search) -->
+  <div id="panel-nearby" class="card hide">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;">
+      <button id="btnBleScan" style="background: #2563eb;">
+        📶 Scan Bluetooth Devices (BLE)
+      </button>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+        <input type="checkbox" id="autoCheckinNearby">
+        <strong>Auto-checkin nearby</strong>
+      </label>
+    </div>
+
+    <div style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 8px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <strong>Live Nearby Queue Radar:</strong>
+        <span id="radarCount" class="status-pill pill-open">0 detected</span>
+      </div>
+      <div id="radarList" class="radar-list">
+        <div class="muted" style="padding: 10px 0;">No students broadcasting nearby right now. Students can open <code>/student</code> on their phone and tap "Broadcast Presence".</div>
+      </div>
+    </div>
+
+    <div style="border-top: 1px solid var(--border-color); padding-top: 14px; margin-top: 16px;">
+      <strong>Quick Nearby Student Search:</strong>
+      <div style="display: flex; gap: 6px; margin-top: 6px;">
+        <input id="nearbySearchInput" placeholder="Type student ID or name to check in..." style="flex: 1;">
+      </div>
+      <div id="nearbySearchResults" style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;"></div>
+    </div>
+  </div>
+
+  <!-- Panel: Manual / Barcode Scanner Gun -->
+  <div id="panel-manual" class="card hide">
+    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+      <input id="manual" placeholder="Barcode Gun / Type Student ID, then Enter" style="flex: 1; min-width: 200px;">
+      <button id="go">Check In</button>
+    </div>
+    <div class="muted" style="margin-top: 6px;">USB / Bluetooth barcode scanner guns automatically press Enter after scan.</div>
+  </div>
+
+  <!-- Scan Result Announcement Box -->
+  <div id="result"></div>
+
+  <!-- Today's Log (Door Station Isolated) -->
+  <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+      <div>
+        <strong style="font-size: 1.05rem;" id="logStationTitle">My Station Check-ins Today</strong>
+        <p class="muted" style="margin: 2px 0 0 0; font-size: 0.82rem;">
+          🔒 <strong>Door-Isolated Feed:</strong> Only displays students checked in at your station. Scans from the other doors are hidden here, while duplicate feeding attempts across all doors are automatically blocked.
+        </p>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span id="logCount" class="status-pill pill-open" style="font-weight: 700;">0 checked in by you</span>
+        <button id="btnToggleAdminScope" class="alt hide" onclick="toggleAdminScope()" style="font-size: 0.78rem; padding: 5px 9px;">🌐 View All Doors</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Meal</th>
+            <th>Student ID</th>
+            <th>Name</th>
+            <th>Department</th>
+            <th>Door Station</th>
+          </tr>
+        </thead>
+        <tbody id="log"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+  <script src="/app.js"></script>
+  <script>
+    // Audio synthesis feedback (zero external audio files needed)
+    function playChime(type = "ok") {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        const now = ctx.currentTime;
+        if (type === "ok") {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(587.33, now); // D5
+          osc.frequency.setValueAtTime(880, now + 0.08); // A5
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else if (type === "warn") {
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.setValueAtTime(415, now + 0.1);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else {
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.setValueAtTime(160, now + 0.1);
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        }
+      } catch {}
+
+      if (navigator.vibrate) {
+        try {
+          if (type === "ok") navigator.vibrate(80);
+          else if (type === "warn") navigator.vibrate([70, 50, 70]);
+          else navigator.vibrate([120, 80, 120]);
+        } catch {}
+      }
+    }
+
+    // Clean & normalize Student ID from raw QR/NFC/Bluetooth payload
+    function extractStudentId(raw) {
+      if (!raw) return "";
+      let str = String(raw).trim();
+      try {
+        if (str.startsWith("http://") || str.startsWith("https://")) {
+          const u = new URL(str);
+          const qId = u.searchParams.get("id") || u.searchParams.get("student_id") || u.searchParams.get("studentId");
+          if (qId) return qId.trim().toUpperCase();
+          const parts = u.pathname.split("/").filter(Boolean);
+          if (parts.length > 0) {
+            const last = parts[parts.length - 1];
+            if (/^[a-zA-Z0-9_\-]+$/.test(last)) return last.trim().toUpperCase();
+          }
+        }
+      } catch {}
+      if (str.startsWith("{") && str.endsWith("}")) {
+        try {
+          const obj = JSON.parse(str);
+          const val = obj.id || obj.student_id || obj.studentId || obj.uid;
+          if (val) return String(val).trim().toUpperCase();
+        } catch {}
+      }
+      const m = str.match(/(?:ID|STUDENT|STUDENT_ID|CARD)[\s:=]+([a-zA-Z0-9\-_/]+)/i);
+      if (m && m[1]) return m[1].trim().toUpperCase();
+
+      return str.toUpperCase();
+    }
+
+    if (!window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+      $("secure").classList.remove("hide");
+    }
+
+    function show(cls, title, sub) {
+      const d = document.createElement("div");
+      d.className = "res " + cls;
+      d.textContent = title + (sub ? " — " + sub : "");
+      $("result").replaceChildren(d);
+      playChime(cls);
+    }
+
+    function showStudent(d, cls, title) {
+      const box = document.createElement("div");
+      box.className = "res " + cls;
+      const titleDiv = document.createElement("div");
+      titleDiv.style.fontSize = "1.15rem";
+      titleDiv.style.fontWeight = "bold";
+      titleDiv.textContent = title;
+      box.appendChild(titleDiv);
+
+      const nameDiv = document.createElement("div");
+      nameDiv.style.fontSize = "1.05rem";
+      nameDiv.textContent = "👤 " + (d.name || "Student");
+      box.appendChild(nameDiv);
+
+      const idDiv = document.createElement("div");
+      idDiv.style.fontWeight = "500";
+      idDiv.textContent = "🆔 ID: " + d.id + (d.card_uid ? ` (Card UID: ${d.card_uid})` : "");
+      box.appendChild(idDiv);
+
+      const meta = [d.department, d.year && "Year " + d.year].filter(Boolean).join(" · ");
+      if (meta) {
+        const metaDiv = document.createElement("div");
+        metaDiv.style.fontWeight = "400";
+        metaDiv.textContent = "📚 " + meta;
+        box.appendChild(metaDiv);
+      }
+
+      if (d.status === "non_cafe" || d.cafe_status === "non_cafe") {
+        const nonCafeBadge = document.createElement("div");
+        nonCafeBadge.style.display = "inline-block";
+        nonCafeBadge.style.backgroundColor = "var(--bad-bg)";
+        nonCafeBadge.style.color = "var(--bad-text)";
+        nonCafeBadge.style.padding = "4px 10px";
+        nonCafeBadge.style.borderRadius = "8px";
+        nonCafeBadge.style.fontWeight = "bold";
+        nonCafeBadge.style.marginTop = "6px";
+        nonCafeBadge.textContent = "🔴 NON-CAFÉ STUDENT — NO MEAL PERMITTED";
+        box.appendChild(nonCafeBadge);
+      }
+
+      if (d.reason || d.message) {
+        const msgDiv = document.createElement("div");
+        msgDiv.style.marginTop = "6px";
+        msgDiv.style.fontSize = "0.95rem";
+        msgDiv.style.fontWeight = "600";
+        msgDiv.textContent = d.message || d.reason;
+        box.appendChild(msgDiv);
+      }
+
+      $("result").replaceChildren(box);
+      playChime(cls);
+    }
+
+    let isProcessing = false;
+    let lastScanTime = 0;
+    let lastScanCode = "";
+    let currentDoorStation = localStorage.getItem("ddu_door_station") || "Door 1 - Main Entrance";
+    let currentUser = null;
+    let currentScope = "me";
+
+    function onDoorStationChange(val) {
+      currentDoorStation = val;
+      localStorage.setItem("ddu_door_station", val);
+      $("logStationTitle").textContent = `My Check-ins (${currentDoorStation})`;
+      loadLog();
+    }
+
+    function toggleAdminScope() {
+      if (!currentUser || currentUser.role !== "admin") return;
+      currentScope = currentScope === "me" ? "all" : "me";
+      $("btnToggleAdminScope").textContent = currentScope === "me" ? "🌐 View All Doors" : "🔒 View My Door Only";
+      $("logStationTitle").textContent = currentScope === "me" ? `My Check-ins (${currentDoorStation})` : "All Cafeteria Doors Check-ins (Admin View)";
+      loadLog();
+    }
+
+    async function checkIn(rawId, uid = "") {
+      const id = extractStudentId(rawId);
+      if (!id && !uid) return;
+
+      const now = Date.now();
+      const checkKey = id + ":" + uid;
+      if (checkKey === lastScanCode && (now - lastScanTime) < 3000) {
+        return; // debounce duplicate triggers
+      }
+      lastScanCode = checkKey;
+      lastScanTime = now;
+
+      const mealChoice = $("mealOverride").value;
+      const body = { id, uid, door: currentDoorStation };
+      if (mealChoice) body.meal = mealChoice;
+
+      try {
+        const d = await api("/api/checkin", "POST", body);
+        if (d.status === "ok") {
+          showStudent(d, "ok", "✓ Checked In · " + d.meal);
+        } else if (d.status === "non_cafe") {
+          showStudent(d, "bad", "⛔ YOU ARE NON-CAFÉ! ENTRY NOT ALLOWED!");
+        } else if (d.status === "blocked_now") {
+          showStudent(d, "bad", `🚨 AUTOMATICALLY BLOCKED! TOOK ${d.meal.toUpperCase()} TWICE!`);
+        } else if (d.status === "blocked") {
+          showStudent(d, "bad", `⛔ STUDENT IS BLOCKED — Feeding Not Allowed!`);
+        } else if (d.status === "duplicate") {
+          showStudent(d, "bad", `🚨 BLOCKED: Already took ${d.meal} at ${d.ts ? d.ts.slice(11, 16) : "earlier"}!`);
+        } else if (d.status === "closed") {
+          show("warn", "Cafeteria Closed", d.message || "Select a meal override above to check in off-schedule");
+        } else {
+          show("bad", "✗ Student Not Registered", `Scanned: ${id || uid}`);
+        }
+        loadLog();
+        loadNearbyRadar();
+      } catch (err) {
+        show("bad", "Check-in Error", err.message);
+      }
+    }
+
+    async function loadLog() {
+      try {
+        const rows = await api(`/api/checkins/today?scope=${currentScope}`);
+        const countSuffix = currentScope === "me" ? " checked in by you" : " total cafeteria check-ins";
+        $("logCount").textContent = `${rows.length}${countSuffix}`;
+        if (rows.length === 0) {
+          $("log").innerHTML = `<tr><td colspan="6" class="muted" style="text-align: center; padding: 20px;">No students checked in at your station yet today.</td></tr>`;
+          return;
+        }
+        $("log").replaceChildren(...rows.map((r) => row([
+          r.ts.slice(11, 16),
+          r.meal,
+          r.id,
+          r.name,
+          r.department || "-",
+          r.door || currentDoorStation
+        ])));
+      } catch {}
+    }
+
+    async function updateMealSchedule() {
+      try {
+        const data = await api("/api/meals");
+        const b = $("mealBadge");
+        if (data.current) {
+          b.className = "status-pill pill-open";
+          b.innerHTML = `<span class="pulse-dot green"></span> Serving: ${data.current}`;
+        } else {
+          b.className = "status-pill pill-closed";
+          b.innerHTML = `<span class="pulse-dot amber"></span> Closed`;
+        }
+        $("serverTime").textContent = `Server: ${data.serverTime}`;
+      } catch {}
+    }
+
+    // Tab Navigation
+    const tabs = ["cam", "nfc", "nearby", "manual"];
+    function setTab(name) {
+      tabs.forEach(t => {
+        $(`tab-${t}`).classList.toggle("on", t === name);
+        $(`panel-${t}`).classList.toggle("hide", t !== name);
+      });
+      if (name === "nearby") loadNearbyRadar();
+    }
+    tabs.forEach(t => {
+      $(`tab-${t}`).onclick = () => setTab(t);
+    });
+
+    // ==========================================
+    // 1. CAMERA (QR & Barcode) SCANNER
+    // ==========================================
+    let camStream = null;
+    let camFacing = "environment";
+    let camRunning = false;
+    let animFrameId = null;
+
+    async function startCamera() {
+      stopCamera();
+      $("camStatus").textContent = "Opening camera...";
+
+      try {
+        let constraints = {
+          video: { facingMode: camFacing, width: { ideal: 1280 }, height: { ideal: 720 } }
+        };
+
+        try {
+          camStream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch {
+          // Fallback to any available video camera
+          camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+
+        const v = $("vid");
+        v.srcObject = camStream;
+        await v.play();
+
+        $("videoContainer").classList.remove("hide");
+        $("btnCamFlip").classList.remove("hide");
+        $("btnCamToggle").textContent = "Stop Camera";
+        $("btnCamToggle").className = "danger";
+        $("camStatus").textContent = "Camera active · Aim at QR code";
+        camRunning = true;
+
+        // Initialize BarcodeDetector safely with supported formats
+        let detector = null;
+        if ("BarcodeDetector" in window) {
+          try {
+            const supported = await BarcodeDetector.getSupportedFormats();
+            const desired = ["qr_code", "code_128", "code_39", "ean_13", "itf", "codabar"];
+            const formats = desired.filter(f => supported.includes(f));
+            if (formats.includes("qr_code") || formats.length > 0) {
+              detector = new BarcodeDetector({ formats });
+            }
+          } catch (e) {
+            console.warn("BarcodeDetector error, using jsQR fallback", e);
+          }
+        }
+
+        const c = $("cv");
+        const ctx = c.getContext("2d", { willReadFrequently: true });
+        let prevW = 0, prevH = 0;
+
+        async function tick() {
+          if (!camRunning) return;
+
+          try {
+            let foundText = "";
+
+            if (detector && v.readyState === v.HAVE_ENOUGH_DATA) {
+              try {
+                const barcodes = await detector.detect(v);
+                if (barcodes.length > 0) {
+                  foundText = barcodes[0].rawValue;
+                }
+              } catch {}
+            }
+
+            // Fallback to jsQR if detector found nothing
+            if (!foundText && window.jsQR && v.readyState === v.HAVE_ENOUGH_DATA) {
+              if (v.videoWidth && (v.videoWidth !== prevW || v.videoHeight !== prevH)) {
+                c.width = v.videoWidth;
+                c.height = v.videoHeight;
+                prevW = v.videoWidth;
+                prevH = v.videoHeight;
+              }
+              if (c.width > 0 && c.height > 0) {
+                ctx.drawImage(v, 0, 0, c.width, c.height);
+                const imgData = ctx.getImageData(0, 0, c.width, c.height);
+                const qr = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "dontInvert" });
+                if (qr && qr.data) foundText = qr.data;
+              }
+            }
+
+            if (foundText) {
+              const cleaned = extractStudentId(foundText);
+              if (cleaned) {
+                checkIn(cleaned);
+              }
+            }
+          } catch (e) {}
+
+          animFrameId = requestAnimationFrame(tick);
+        }
+
+        animFrameId = requestAnimationFrame(tick);
+      } catch (err) {
+        show("bad", "Camera Error", "Needs camera permission or HTTPS link: " + err.message);
+        $("camStatus").textContent = "Camera error";
+        stopCamera();
+      }
+    }
+
+    function stopCamera() {
+      camRunning = false;
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      if (camStream) {
+        camStream.getTracks().forEach(t => t.stop());
+        camStream = null;
+      }
+      $("videoContainer").classList.add("hide");
+      $("btnCamFlip").classList.add("hide");
+      $("btnCamToggle").textContent = "Start Camera";
+      $("btnCamToggle").className = "";
+      $("camStatus").textContent = "Camera stopped";
+    }
+
+    $("btnCamToggle").onclick = () => {
+      if (camRunning) stopCamera(); else startCamera();
+    };
+
+    $("btnCamFlip").onclick = () => {
+      camFacing = camFacing === "environment" ? "user" : "environment";
+      startCamera();
+    };
+
+    // ==========================================
+    // 2. NFC TAP READER
+    // ==========================================
+    let nfcController = null;
+    let nfcListening = false;
+
+    async function startNfc() {
+      if (!window.isSecureContext) {
+        return show("bad", "NFC Needs HTTPS", "Open the https:// tunnel link on your phone");
+      }
+      if (!("NDEFReader" in window)) {
+        return show("bad", "NFC Not Supported", "NDEFReader is supported in Chrome on Android with NFC enabled");
+      }
+
+      stopNfc();
+      nfcController = new AbortController();
+
+      try {
+        const reader = new NDEFReader();
+        await reader.scan({ signal: nfcController.signal });
+
+        nfcListening = true;
+        $("btnNfcToggle").textContent = "Stop NFC Listening";
+        $("btnNfcToggle").className = "danger";
+        $("nfcStatusText").textContent = "🟢 NFC Active — Listening for cards";
+        $("nfcActiveBox").classList.remove("hide");
+
+        reader.onreading = (event) => {
+          let extractedId = "";
+          let serialNum = event.serialNumber || "";
+
+          // Decode records
+          for (const rec of event.message.records) {
+            try {
+              if (rec.recordType === "text") {
+                const decoder = new TextDecoder(rec.encoding || "utf-8");
+                const text = decoder.decode(rec.data);
+                extractedId = extractStudentId(text);
+                if (extractedId) break;
+              } else if (rec.recordType === "url") {
+                const decoder = new TextDecoder();
+                const url = decoder.decode(rec.data);
+                extractedId = extractStudentId(url);
+                if (extractedId) break;
+              } else if (rec.data) {
+                const decoder = new TextDecoder();
+                const raw = decoder.decode(rec.data);
+                extractedId = extractStudentId(raw);
+                if (extractedId) break;
+              }
+            } catch {}
+          }
+
+          if (extractedId || serialNum) {
+            checkIn(extractedId, serialNum);
+          } else {
+            show("bad", "Card Unreadable", "Could not parse student ID or serial number from this tag.");
+          }
+        };
+
+        reader.onreadingerror = () => {
+          show("bad", "NFC Read Error", "Tag was detected but could not be read. Please hold card steady.");
+        };
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          show("bad", "NFC Failed to Start", err.message);
+        }
+        stopNfc();
+      }
+    }
+
+    function stopNfc() {
+      if (nfcController) {
+        nfcController.abort();
+        nfcController = null;
+      }
+      nfcListening = false;
+      $("btnNfcToggle").textContent = "Start NFC Tap Listening";
+      $("btnNfcToggle").className = "";
+      $("nfcStatusText").textContent = "NFC idle";
+      $("nfcActiveBox").classList.add("hide");
+    }
+
+    $("btnNfcToggle").onclick = () => {
+      if (nfcListening) stopNfc(); else startNfc();
+    };
+
+    // ==========================================
+    // 3. NEARBY SCAN (Bluetooth BLE + Radar)
+    // ==========================================
+    // Bluetooth BLE device scanning
+    $("btnBleScan").onclick = async () => {
+      if (!navigator.bluetooth) {
+        return show("bad", "Bluetooth Unavailable", "Web Bluetooth requires Chrome/Edge on Android, Windows, or Mac with Bluetooth enabled.");
+      }
+
+      try {
+        show("warn", "Scanning Bluetooth...", "Select the student's Bluetooth beacon or phone.");
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true
+        });
+
+        if (device && device.name) {
+          const studentId = extractStudentId(device.name);
+          if (studentId) {
+            checkIn(studentId);
+          } else {
+            show("warn", "Device Detected: " + device.name, "Checking if student ID matches device name...");
+            checkIn(device.name);
+          }
+        } else {
+          show("bad", "Device has no name", "Make sure the student's phone Bluetooth name contains their Student ID.");
+        }
+      } catch (err) {
+        if (err.name !== "NotFoundError") {
+          show("bad", "Bluetooth Scan Error", err.message);
+        }
+      }
+    };
+
+    // Nearby presence radar polling
+    let radarInterval = null;
+    async function loadNearbyRadar() {
+      try {
+        const studentsNearby = await api("/api/nearby");
+        $("radarCount").textContent = `${studentsNearby.length} detected`;
+
+        const list = $("radarList");
+        if (studentsNearby.length === 0) {
+          list.innerHTML = `<div class="muted" style="padding: 10px 0;">No students broadcasting nearby right now. Students can open <code>/student</code> on their phone and tap "Broadcast Presence".</div>`;
+          return;
+        }
+
+        list.replaceChildren(...studentsNearby.map(s => {
+          const item = document.createElement("div");
+          item.className = "radar-item";
+
+          const left = document.createElement("div");
+          left.innerHTML = `
+            <div class="stu-name">${s.name} <span class="muted" style="font-weight: 400;">(${s.id})</span></div>
+            <div class="stu-meta">${s.department || "Student"} ${s.year ? "· Year " + s.year : ""} · ${s.ageSec}s ago</div>
+          `;
+
+          const right = document.createElement("div");
+          const b = btn("Check In", () => checkIn(s.id));
+          b.style.padding = "6px 14px";
+          right.appendChild(b);
+
+          item.appendChild(left);
+          item.appendChild(right);
+          return item;
+        }));
+
+        // Auto check-in closest/first student if enabled
+        if ($("autoCheckinNearby").checked && studentsNearby.length > 0) {
+          const top = studentsNearby[0];
+          checkIn(top.id);
+        }
+      } catch {}
+    }
+
+    radarInterval = setInterval(loadNearbyRadar, 3000);
+
+    // Nearby live search
+    let searchDebounce = null;
+    $("nearbySearchInput").oninput = (e) => {
+      clearTimeout(searchDebounce);
+      const q = e.target.value.trim();
+      if (!q) {
+        $("nearbySearchResults").innerHTML = "";
+        return;
+      }
+      searchDebounce = setTimeout(async () => {
+        try {
+          const results = await api("/api/students/search?q=" + encodeURIComponent(q));
+          const box = $("nearbySearchResults");
+          if (results.length === 0) {
+            box.innerHTML = `<div class="muted">No matching student found.</div>`;
+            return;
+          }
+          box.replaceChildren(...results.map(s => {
+            const row = document.createElement("div");
+            row.className = "radar-item";
+            row.innerHTML = `
+              <div>
+                <strong>${s.name}</strong> <span class="muted">(${s.id})</span>
+                <div class="muted" style="font-size: 0.85rem;">${s.department} · Year ${s.year}</div>
+              </div>
+            `;
+            const b = btn("Check In", () => {
+              checkIn(s.id);
+              $("nearbySearchInput").value = "";
+              box.innerHTML = "";
+            });
+            b.style.padding = "6px 12px";
+            row.appendChild(b);
+            return row;
+          }));
+        } catch {}
+      }, 250);
+    };
+
+    // ==========================================
+    // 4. MANUAL INPUT / BARCODE GUN
+    // ==========================================
+    $("go").onclick = () => {
+      const val = $("manual").value.trim();
+      if (val) {
+        checkIn(val);
+        $("manual").value = "";
+        $("manual").focus();
+      }
+    };
+    $("manual").onkeydown = (e) => {
+      if (e.key === "Enter") $("go").click();
+    };
+
+    // Initial Load & Door Setup
+    api("/api/me").then((u) => {
+      currentUser = u;
+      $("who").textContent = u.name;
+      $("checkerName").textContent = `${u.name} (@${u.username})`;
+
+      if (u.role === "admin") {
+        $("btnToggleAdminScope").classList.remove("hide");
+      }
+
+      if (u.door && !localStorage.getItem("ddu_door_station")) {
+        currentDoorStation = u.door;
+      }
+      $("doorStationSelect").value = currentDoorStation;
+      $("logStationTitle").textContent = `My Check-ins (${currentDoorStation})`;
+      loadLog();
+    }).catch(() => {
+      loadLog();
+    });
+    updateMealSchedule();
+    setInterval(updateMealSchedule, 30000);
+  </script>
+</body>
+</html>

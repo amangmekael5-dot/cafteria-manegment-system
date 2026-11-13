@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Admin Dashboard - Dire Dawa University</title>
+  <meta name="theme-color" content="#154c79" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DDU Admin">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/style.css">
+  <script>
+    (function() {
+      const s = localStorage.getItem("ddu_theme");
+      const p = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (s === "dark" || (!s && p)) document.documentElement.setAttribute("data-theme", "dark");
+    })();
+  </script>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="/logo.png" alt="Dire Dawa University Logo" class="brand-logo">
+      <div class="brand-text">
+        <span class="brand-univ">Dire Dawa University</span>
+        <h1 class="brand-title">Cafeteria Admin</h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="alt back-btn" onclick="goBack()" title="Go back (Backspace)">← Back</button>
+      <a href="/checker" style="font-size: 0.88rem; text-decoration: none; color: var(--primary); font-weight: 600; padding: 7px 10px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border-color);">
+        📷 Scanner
+      </a>
+      <a href="/student" target="_blank" style="font-size: 0.88rem; text-decoration: none; color: var(--primary); font-weight: 600; padding: 7px 10px; border-radius: 8px; background: var(--bg-surface); border: 1px solid var(--border-color);">
+        📱 Pass
+      </a>
+      <button class="alt theme-toggle-btn" onclick="toggleTheme()">🌙 Dark</button>
+      <button class="alt" onclick="logout()">Log out</button>
+    </div>
+  </header>
+
+  <!-- Admin Profile / Account Quick Access Bar -->
+  <div class="card" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 16px; margin-bottom: 14px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-size: 1.15rem;">👤</span>
+      <span>Logged in as: <strong id="adminUsernameBadge" style="color: var(--primary);">admin</strong> (<span id="adminNameBadge">Administrator</span>)</span>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="alt" onclick="openSelfEditModal()" style="font-size: 0.85rem; padding: 6px 14px; font-weight: 600;">
+        ✏️ Change My Username / Password
+      </button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button id="t-rep" class="on">📊 Daily Report</button>
+    <button id="t-chk">👥 Staff & Accounts</button>
+    <button id="t-stu">🎓 Student Registry</button>
+  </div>
+
+  <!-- Report -->
+  <section id="v-rep">
+    <!-- Printable Header (Only visible when printing / saving as PDF) -->
+    <div class="print-only print-header">
+      <img src="/logo.png" alt="Dire Dawa University Logo">
+      <div class="print-header-text">
+        <h2>Dire Dawa University · ድሬዳዋ ዩኒቨርሲቲ</h2>
+        <p><strong>Office of Student Services · Cafeteria Attendance & Dining Report</strong></p>
+        <p id="printReportMeta" style="font-size: 9pt; color: #444; margin-top: 4px;"></p>
+      </div>
+    </div>
+
+    <!-- Report Generator & Filter Control Card -->
+    <div class="card no-print" style="margin-bottom: 14px; padding: 18px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+        <div>
+          <strong style="font-size: 1.12rem;">📑 Generate Cafeteria Attendance Report</strong>
+          <p class="muted" style="margin: 2px 0 0 0;">Filter check-in records across any date range, meal, or department. Export to Excel or print official PDF.</p>
+        </div>
+        <!-- Quick Range Presets -->
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button class="alt" onclick="setReportPreset('today')" style="padding: 6px 12px; font-size: 0.82rem; font-weight: 600;">Today</button>
+          <button class="alt" onclick="setReportPreset('yesterday')" style="padding: 6px 12px; font-size: 0.82rem; font-weight: 600;">Yesterday</button>
+          <button class="alt" onclick="setReportPreset('last7')" style="padding: 6px 12px; font-size: 0.82rem; font-weight: 600;">Last 7 Days</button>
+          <button class="alt" onclick="setReportPreset('this_month')" style="padding: 6px 12px; font-size: 0.82rem; font-weight: 600;">This Month</button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end;">
+        <div>
+          <label for="repFrom" style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">From Date:</label>
+          <input type="date" id="repFrom" style="width: 100%; margin: 0; padding: 8px 10px;">
+        </div>
+        <div>
+          <label for="repTo" style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">To Date:</label>
+          <input type="date" id="repTo" style="width: 100%; margin: 0; padding: 8px 10px;">
+        </div>
+        <div>
+          <label for="repMeal" style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Meal Session:</label>
+          <select id="repMeal" style="width: 100%; margin: 0; padding: 8px 10px;">
+            <option value="">All Meals (Breakfast, Lunch, Dinner)</option>
+            <option value="Breakfast">Breakfast (🌅 05:30 - 09:30)</option>
+            <option value="Lunch">Lunch (☀️ 11:00 - 14:30)</option>
+            <option value="Dinner">Dinner (🌙 17:00 - 20:30)</option>
+          </select>
+        </div>
+        <div>
+          <label for="repDept" style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 4px;">Department:</label>
+          <select id="repDept" style="width: 100%; margin: 0; padding: 8px 10px;">
+            <option value="">All Departments</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button onclick="generateReport()" style="padding: 9px 18px; font-weight: 700;">
+            🔍 Generate Report
+          </button>
+          <button class="alt" onclick="exportReportCSV()" style="padding: 9px 14px; font-weight: 600;">
+            📥 Export to Excel / CSV
+          </button>
+          <button class="alt" onclick="printReportPDF()" style="padding: 9px 14px; font-weight: 600;">
+            🖨️ Print / Save as PDF
+          </button>
+        </div>
+        <div>
+          <button class="alt danger" onclick="clearDayCheckins()" style="font-size: 0.85rem; padding: 8px 14px;">
+            🗑️ Clear Range's Logs
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stat Cards Summary -->
+    <div class="card" style="padding: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+        <div style="font-weight: 700; font-size: 1.05rem;" id="reportSummaryTitle">Report Summary</div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <span class="status-pill pill-open" id="uniqueStudentsBadge">0 Unique Students</span>
+          <span class="status-pill pill-closed" id="dateRangeBadge">Today</span>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Breakfast</div>
+          <div id="count-bf" class="stat-num" style="color: #f59e0b;">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Lunch</div>
+          <div id="count-lu" class="stat-num" style="color: #10b981;">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Dinner</div>
+          <div id="count-di" class="stat-num" style="color: #2563eb;">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Meals Served</div>
+          <div id="count-tot" class="stat-num" style="color: var(--text-main);">0</div>
+        </div>
+      </div>
+
+      <!-- Department Breakdown -->
+      <div id="deptBreakdownWrap" class="no-print" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+        <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Meals Served by Department:</span>
+        <div id="deptPills" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;"></div>
+      </div>
+
+      <!-- Check-in Log Table -->
+      <div class="table-wrap" style="margin-top: 16px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Meal</th>
+              <th>Student ID</th>
+              <th>Name</th>
+              <th>Department</th>
+              <th>Year</th>
+              <th>Checker</th>
+              <th>Door Station</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="repbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Printable Signature Block (Only visible on print / PDF) -->
+      <div class="print-only print-footer">
+        <div>
+          <p><strong>Report Generated By:</strong> <span id="printPreparedBy">Administrator</span></p>
+          <p style="margin-top: 25px;">Signature: __________________________</p>
+        </div>
+        <div>
+          <p><strong>Cafeteria Supervisor / Director:</strong></p>
+          <p style="margin-top: 25px;">Signature: __________________________</p>
+        </div>
+        <div>
+          <p><strong>Official University Stamp & Date:</strong></p>
+          <p style="margin-top: 25px;">Date: __________________________</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Checkers & Accounts -->
+  <section id="v-chk" class="hide">
+    <div class="card">
+      <strong style="font-size: 1.05rem;">Create Staff or Administrator Account</strong><br>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-top: 10px;">
+        <input id="cu" placeholder="Staff Username (e.g. checker1)">
+        <input id="cn" placeholder="Full Name">
+        <input id="cdoor" placeholder="Assigned Door (e.g. Door 1)">
+        <input id="cp" type="password" placeholder="Password (6+ chars)">
+        <select id="crole">
+          <option value="checker">Cafeteria Checker</option>
+          <option value="admin">Administrator</option>
+        </select>
+      </div>
+      <button id="cadd" style="margin-top: 10px;">Create Account</button>
+      <div id="cmsg" class="muted" style="margin-top: 6px;"></div>
+    </div>
+
+    <div class="card">
+      <strong style="font-size: 1.05rem;">All Staff & Administrator Accounts</strong>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Name</th>
+              <th>Door Station</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="chkbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Students -->
+  <section id="v-stu" class="hide">
+    <div class="card">
+      <strong style="font-size: 1.05rem;">Register Student</strong>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-top: 10px;">
+        <input id="sid" placeholder="Student ID (e.g. DDU1001)">
+        <input id="sname" placeholder="Full Name">
+        <input id="sdept" placeholder="Department">
+        <input id="syear" placeholder="Year (e.g. 3)">
+        <input id="scard" placeholder="NFC Card UID (optional)">
+        <select id="scafe">
+          <option value="cafe">🟢 Café (Campus Dining)</option>
+          <option value="non_cafe">🔴 Non-Café (Off-campus Allowance)</option>
+        </select>
+      </div>
+      <button id="sadd" style="margin-top: 10px;">Add Student</button>
+      <div id="smsg" class="muted" style="margin-top: 6px;"></div>
+    </div>
+
+    <div class="card">
+      <strong style="font-size: 1.05rem;">Batch Import from CSV</strong>
+      <p class="muted" style="margin: 4px 0 8px 0;">Format: <code>ID, Full Name, Department, Year, CardUID, CafeStatus (cafe / non_cafe)</code></p>
+      <textarea id="csv" placeholder="DDU1001, Amina Yusuf, Computer Science, 3, 04A2B3C4, cafe
+DDU1002, Daniel Bekele, Engineering, 2, 05B3C4D5, non_cafe"></textarea>
+      <button id="simp" style="margin-top: 8px;">Import Students</button>
+    </div>
+
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <strong style="font-size: 1.05rem;">Registered Students</strong>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <span id="cafeCountBadge" class="status-pill pill-open">0 Café</span>
+          <span id="nonCafeCountBadge" class="status-pill" style="background: var(--bad-bg); color: var(--bad-text);">0 Non-Café</span>
+          <span id="blockedSummary" class="status-pill pill-closed">0 Blocked</span>
+        </div>
+      </div>
+
+      <!-- Category Filter Tabs -->
+      <div class="filter-pills">
+        <button id="fil-all" class="on" onclick="setStudentFilter('all')">All Students</button>
+        <button id="fil-cafe" onclick="setStudentFilter('cafe')">🟢 Café Students</button>
+        <button id="fil-noncafe" onclick="setStudentFilter('non_cafe')">🔴 Non-Café Students</button>
+        <button id="fil-blocked" onclick="setStudentFilter('blocked')">🚨 Blocked</button>
+      </div>
+
+      <div id="blockedAlert" class="res bad hide" style="margin-top: 8px;"></div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Department</th>
+              <th>Year</th>
+              <th>NFC Card UID</th>
+              <th>Dining Status</th>
+              <th>Feeding Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="stubody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Modal: Edit User / Admin Account -->
+  <div id="userModal" class="modal-overlay hide" onclick="if(event.target===this)closeUserModal()">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="userModalTitle">Edit Account</h3>
+        <button class="modal-close-btn" onclick="closeUserModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editUserId">
+        <div class="form-group">
+          <label for="editUserUsername">Username (Login ID):</label>
+          <input id="editUserUsername" placeholder="e.g. admin or checker1">
+        </div>
+        <div class="form-group">
+          <label for="editUserName">Full Name:</label>
+          <input id="editUserName" placeholder="Full name">
+        </div>
+        <div class="form-group">
+          <label for="editUserDoor">Assigned Door / Station:</label>
+          <input id="editUserDoor" placeholder="e.g. Door 1 - Main Entrance">
+        </div>
+        <div class="form-group">
+          <label for="editUserRole">Role:</label>
+          <select id="editUserRole">
+            <option value="checker">Cafeteria Checker</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="editUserActive">Account Status:</label>
+          <select id="editUserActive">
+            <option value="true">Active (Enabled)</option>
+            <option value="false">Disabled (Suspended)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="editUserPassword">New Password (leave blank to keep current):</label>
+          <input id="editUserPassword" type="password" placeholder="Leave blank to keep unchanged">
+        </div>
+        <div id="userModalError" class="res bad hide" style="margin: 0; padding: 8px 12px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="alt" onclick="closeUserModal()">Cancel</button>
+        <button id="saveUserBtn" onclick="saveUserModal()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Student Details -->
+  <div id="studentModal" class="modal-overlay hide" onclick="if(event.target===this)closeStudentModal()">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Student Details</h3>
+        <button class="modal-close-btn" onclick="closeStudentModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editStudentOrigId">
+        <div class="form-group">
+          <label for="editStudentId">Student ID:</label>
+          <input id="editStudentId" placeholder="e.g. DDU1001" style="text-transform: uppercase;">
+        </div>
+        <div class="form-group">
+          <label for="editStudentName">Full Name:</label>
+          <input id="editStudentName" placeholder="Full Student Name">
+        </div>
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+          <div class="form-group">
+            <label for="editStudentDept">Department:</label>
+            <input id="editStudentDept" placeholder="e.g. Computer Science">
+          </div>
+          <div class="form-group">
+            <label for="editStudentYear">Year:</label>
+            <input id="editStudentYear" placeholder="e.g. 3">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="editStudentCard">NFC Card UID (optional):</label>
+          <input id="editStudentCard" placeholder="e.g. 04A2B3C4">
+        </div>
+        <div class="form-group">
+          <label for="editStudentCafe">Dining Category:</label>
+          <select id="editStudentCafe">
+            <option value="cafe">🟢 Café (Campus Dining)</option>
+            <option value="non_cafe">🔴 Non-Café (Off-campus Allowance)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="editStudentBlocked">Feeding Eligibility Status:</label>
+          <select id="editStudentBlocked" onchange="$('editBlockReasonGroup').classList.toggle('hide', this.value !== 'true')">
+            <option value="false">🟢 Eligible to Feed</option>
+            <option value="true">🔴 Blocked from Feeding</option>
+          </select>
+        </div>
+        <div id="editBlockReasonGroup" class="form-group hide">
+          <label for="editStudentBlockReason">Block Reason:</label>
+          <input id="editStudentBlockReason" placeholder="Reason for blocking feeding">
+        </div>
+        <div id="studentModalError" class="res bad hide" style="margin: 0; padding: 8px 12px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="alt" onclick="closeStudentModal()">Cancel</button>
+        <button id="saveStudentBtn" onclick="saveStudentModal()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+  <script>
+    let currentUser = null;
+    let allUsersCache = [];
+    let allStudentsCache = [];
+    let currentStudentFilter = "all";
+
+    // Load current admin info
+    async function loadCurrentAdmin() {
+      try {
+        currentUser = await api("/api/me");
+        if (currentUser) {
+          $("adminUsernameBadge").textContent = currentUser.username;
+          $("adminNameBadge").textContent = currentUser.name || "Administrator";
+        }
+      } catch (e) {
+        console.error("Could not fetch current admin info:", e);
+      }
+    }
+    loadCurrentAdmin();
+
+    const tabs = ["rep", "chk", "stu"];
+    function tab(n) {
+      tabs.forEach((t) => {
+        $("v-" + t).classList.toggle("hide", t !== n);
+        $("t-" + t).classList.toggle("on", t === n);
+      });
+      if (n === "rep") generateReport();
+      if (n === "chk") loadUsers();
+      if (n === "stu") loadStudents();
+    }
+    tabs.forEach((t) => ($("t-" + t).onclick = () => tab(t)));
+
+    // Report Generator State & Logic
+    let cachedReportRows = [];
+
+    // Initialize report filters to today
+    const todayStr = new Date().toLocaleDateString("sv");
+    $("repFrom").value = todayStr;
+    $("repTo").value = todayStr;
+
+    function setReportPreset(preset) {
+      const now = new Date();
+      const fmt = (d) => d.toLocaleDateString("sv");
+
+      if (preset === "today") {
+        $("repFrom").value = fmt(now);
+        $("repTo").value = fmt(now);
+      } else if (preset === "yesterday") {
+        const y = new Date(now);
+        y.setDate(y.getDate() - 1);
+        $("repFrom").value = fmt(y);
+        $("repTo").value = fmt(y);
+      } else if (preset === "last7") {
+        const past = new Date(now);
+        past.setDate(past.getDate() - 6);
+        $("repFrom").value = fmt(past);
+        $("repTo").value = fmt(now);
+      } else if (preset === "this_month") {
+        const first = new Date(now.getFullYear(), now.getMonth(), 1);
+        $("repFrom").value = fmt(first);
+        $("repTo").value = fmt(now);
+      }
+      generateReport();
+    }
+
+    async function generateReport() {
+      const from = $("repFrom").value || todayStr;
+      const to = $("repTo").value || todayStr;
+      const meal = $("repMeal").value;
+      const selectedDept = $("repDept").value;
+
+      try {
+        let url = `/api/report?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+        if (meal) url += `&meal=${encodeURIComponent(meal)}`;
+
+        let rows = await api(url);
+
+        // Filter by department if chosen
+        if (selectedDept) {
+          rows = rows.filter(r => (r.department || "").trim().toLowerCase() === selectedDept.trim().toLowerCase());
+        }
+
+        cachedReportRows = rows;
+
+        // Compute Statistics
+        const count = (m) => rows.filter((r) => r.meal === m).length;
+        const bfCount = count("Breakfast");
+        const luCount = count("Lunch");
+        const diCount = count("Dinner");
+        const totCount = rows.length;
+        const uniqueStudents = new Set(rows.map(r => r.id)).size;
+
+        $("count-bf").textContent = bfCount;
+        $("count-lu").textContent = luCount;
+        $("count-di").textContent = diCount;
+        $("count-tot").textContent = totCount;
+        $("uniqueStudentsBadge").textContent = `${uniqueStudents} Unique Students`;
+
+        if (from === to) {
+          $("dateRangeBadge").textContent = from === todayStr ? "Today (" + from + ")" : from;
+        } else {
+          $("dateRangeBadge").textContent = `${from} → ${to}`;
+        }
+
+        // Render Department Breakdown Pills
+        const deptCounts = {};
+        rows.forEach(r => {
+          const dept = r.department && r.department !== "-" ? r.department : "Other / Unassigned";
+          deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+        });
+
+        const pillsContainer = $("deptPills");
+        pillsContainer.innerHTML = "";
+        const deptsSorted = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]);
+
+        if (deptsSorted.length === 0) {
+          pillsContainer.innerHTML = `<span class="muted">No department check-in records for this filter.</span>`;
+        } else {
+          deptsSorted.forEach(([dept, cnt]) => {
+            const pill = document.createElement("span");
+            pill.className = "status-pill pill-open";
+            pill.style.fontSize = "0.82rem";
+            pill.style.padding = "4px 10px";
+            pill.innerHTML = `<strong>${dept}:</strong> ${cnt} meal${cnt > 1 ? "s" : ""}`;
+            pillsContainer.appendChild(pill);
+          });
+        }
+
+        // Render Report Table
+        if (rows.length === 0) {
+          $("repbody").innerHTML = `<tr><td colspan="9" class="muted" style="text-align: center; padding: 24px;">No check-ins found for selected range (${from} to ${to}) and filters.</td></tr>`;
+          return;
+        }
+
+        $("repbody").replaceChildren(...rows.map((r) => {
+          const actions = document.createElement("span");
+          actions.className = "table-actions";
+          actions.append(btn("🗑️ Delete", async () => {
+            if (confirm(`Delete check-in log for ${r.name} (${r.meal} at ${r.ts.slice(11, 16)})?`)) {
+              try {
+                await api("/api/checkins/" + encodeURIComponent(r._id), "DELETE");
+                generateReport();
+              } catch (err) {
+                alert(err.message);
+              }
+            }
+          }, "danger"));
+
+          const tr = document.createElement("tr");
+
+          const dateCell = document.createElement("td");
+          dateCell.style.whiteSpace = "nowrap";
+          dateCell.textContent = r.day || r.ts.slice(0, 10);
+
+          const timeCell = document.createElement("td");
+          timeCell.style.fontWeight = "600";
+          timeCell.style.whiteSpace = "nowrap";
+          timeCell.textContent = r.ts.slice(11, 16);
+
+          const mealCell = document.createElement("td");
+          mealCell.style.fontWeight = "700";
+          mealCell.textContent = r.meal;
+
+          const idCell = document.createElement("td");
+          idCell.style.fontFamily = "ui-monospace, SFMono-Regular, monospace";
+          idCell.style.fontWeight = "700";
+          idCell.style.color = "var(--primary)";
+          idCell.textContent = r.id;
+
+          const nameCell = document.createElement("td");
+          nameCell.style.fontWeight = "600";
+          nameCell.textContent = r.name;
+
+          const deptCell = document.createElement("td");
+          deptCell.textContent = r.department || "-";
+
+          const yearCell = document.createElement("td");
+          yearCell.textContent = r.year ? "Yr " + r.year : "-";
+
+          const checkerCell = document.createElement("td");
+          checkerCell.textContent = r.checker || "-";
+
+          const doorCell = document.createElement("td");
+          doorCell.textContent = r.door || "Door Station";
+
+          const actCell = document.createElement("td");
+          actCell.className = "actions-col";
+          actCell.append(actions);
+
+          tr.append(dateCell, timeCell, mealCell, idCell, nameCell, deptCell, yearCell, checkerCell, doorCell, actCell);
+          return tr;
+        }));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Export to Excel-compatible UTF-8 CSV
+    function exportReportCSV() {
+      if (!cachedReportRows || cachedReportRows.length === 0) {
+        return alert("No report records available to export. Please generate a report first.");
+      }
+
+      const from = $("repFrom").value || todayStr;
+      const to = $("repTo").value || todayStr;
+      const meal = $("repMeal").value || "All";
+
+      let csv = "\uFEFF"; // UTF-8 BOM so Excel opens with proper unicode/Amharic characters
+      csv += "DIRE DAWA UNIVERSITY - CAFETERIA ATTENDANCE REPORT\r\n";
+      csv += `"Report Range:","${from} to ${to}","Meal:","${meal}","Generated:","${new Date().toLocaleString()}"\r\n\r\n`;
+
+      // Header row
+      csv += '"No.","Date","Time","Meal","Student ID","Student Name","Department","Year","Dining Category","Verified By (Checker)"\r\n';
+
+      cachedReportRows.forEach((r, idx) => {
+        const esc = (txt) => '"' + String(txt || "").replace(/"/g, '""') + '"';
+        csv += [
+          idx + 1,
+          esc(r.day || r.ts.slice(0, 10)),
+          esc(r.ts.slice(11, 16)),
+          esc(r.meal),
+          esc(r.id),
+          esc(r.name),
+          esc(r.department || "-"),
+          esc(r.year || "-"),
+          esc(r.cafe_status === "non_cafe" ? "Non-Café" : "Café"),
+          esc(r.checker || "-")
+        ].join(",") + "\r\n";
+      });
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `DDU_Cafeteria_Report_${from}_to_${to}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Print / Save to PDF
+    function printReportPDF() {
+      if (!cachedReportRows || cachedReportRows.length === 0) {
+        return alert("No report records to print. Please generate a report first.");
+      }
+
+      const from = $("repFrom").value || todayStr;
+      const to = $("repTo").value || todayStr;
+      const meal = $("repMeal").value || "All Meals";
+      const dept = $("repDept").value || "All Departments";
+      const uniqueStudents = new Set(cachedReportRows.map(r => r.id)).size;
+
+      $("printReportMeta").textContent = `Range: ${from} to ${to} | Meal: ${meal} | Department: ${dept} | Total Meals: ${cachedReportRows.length} | Unique Students: ${uniqueStudents} | Generated: ${new Date().toLocaleString()}`;
+
+      if (currentUser) {
+        $("printPreparedBy").textContent = `${currentUser.name} (@${currentUser.username})`;
+      }
+
+      window.print();
+    }
+
+    // Populate department options dynamically
+    function populateDepartmentFilter() {
+      const select = $("repDept");
+      const currentVal = select.value;
+      const depts = new Set();
+      allStudentsCache.forEach(s => {
+        if (s.department && s.department.trim()) depts.add(s.department.trim());
+      });
+
+      select.innerHTML = '<option value="">All Departments</option>';
+      [...depts].sort().forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = d;
+        select.appendChild(opt);
+      });
+      if (currentVal) select.value = currentVal;
+    }
+
+    async function clearDayCheckins() {
+      const from = $("repFrom").value || todayStr;
+      const to = $("repTo").value || todayStr;
+
+      let msg = `⚠️ Warning: Are you sure you want to delete check-in logs for ${from === to ? from : from + ' to ' + to}? This cannot be undone.`;
+      if (!confirm(msg)) return;
+
+      try {
+        if (from === to) {
+          const res = await api(`/api/checkins?date=${encodeURIComponent(from)}`, "DELETE");
+          alert(`Deleted ${res.deletedCount || 0} check-in log(s).`);
+        } else {
+          // If range, delete day by day in range
+          const startDate = new Date(from);
+          const endDate = new Date(to);
+          let deletedTotal = 0;
+          for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const dayStr = d.toLocaleDateString("sv");
+            const res = await api(`/api/checkins?date=${encodeURIComponent(dayStr)}`, "DELETE");
+            deletedTotal += (res.deletedCount || 0);
+          }
+          alert(`Deleted ${deletedTotal} check-in log(s) across selected range.`);
+        }
+        generateReport();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    // Users / Accounts Management
+    async function loadUsers() {
+      try {
+        allUsersCache = await api("/api/users");
+        $("chkbody").replaceChildren(...allUsersCache.map((u) => {
+          const actions = document.createElement("span");
+          actions.className = "table-actions";
+
+          // Edit User button
+          actions.append(btn("✏️ Edit", () => openEditUserModal(u), "alt"));
+
+          // Toggle Active/Disabled
+          actions.append(btn(u.active ? "Disable" : "Enable", async () => {
+            try {
+              await api(`/api/users/${u.id}/toggle`, "POST");
+              loadUsers();
+            } catch (err) {
+              alert(err.message);
+            }
+          }, u.active ? "alt" : "success"));
+
+          // Reset Password button
+          actions.append(btn("🔑 Reset PW", async () => {
+            const pw = prompt("New password for " + u.username + " (6+ characters):");
+            if (!pw) return;
+            try {
+              await api(`/api/users/${u.id}/password`, "POST", { password: pw });
+              alert("Password changed successfully for @" + u.username);
+            } catch (e) {
+              alert(e.message);
+            }
+          }, "alt"));
+
+          // Delete Account button
+          actions.append(btn("🗑️ Delete", () => deleteUserAccount(u), "danger"));
+
+          const statusPill = document.createElement("span");
+          statusPill.className = "status-pill " + (u.active ? "pill-open" : "pill-closed");
+          statusPill.textContent = u.active ? "Active" : "Disabled";
+
+          const rolePill = document.createElement("span");
+          rolePill.style.fontWeight = "700";
+          rolePill.textContent = u.role === "admin" ? "🛡️ Administrator" : "Checker";
+
+          const isSelf = currentUser && currentUser.id === u.id;
+          const userCell = document.createElement("span");
+          userCell.innerHTML = `<strong>@${u.username}</strong>` + (isSelf ? ` <span class="status-pill pill-open" style="font-size: 0.75rem; padding: 2px 7px;">You</span>` : "");
+
+          const doorCell = document.createElement("span");
+          doorCell.className = "status-pill";
+          doorCell.style.backgroundColor = "var(--bg-surface)";
+          doorCell.style.border = "1px solid var(--border-color)";
+          doorCell.textContent = u.door || "Main Gate";
+
+          return row([userCell, u.name, doorCell, rolePill, statusPill, actions]);
+        }));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function deleteUserAccount(u) {
+      if (confirm(`Are you sure you want to PERMANENTLY DELETE user account "@${u.username}" (${u.name})?`)) {
+        try {
+          await api("/api/users/" + encodeURIComponent(u.id), "DELETE");
+          alert(`Account @${u.username} deleted.`);
+          loadUsers();
+          if (currentUser && currentUser.id === u.id) {
+            alert("You deleted your own account. Redirecting to login.");
+            location = "/login.html";
+          }
+        } catch (e) {
+          alert(e.message);
+        }
+      }
+    }
+
+    $("cadd").onclick = async () => {
+      try {
+        await api("/api/users", "POST", {
+          username: $("cu").value,
+          name: $("cn").value,
+          door: $("cdoor").value,
+          password: $("cp").value,
+          role: $("crole").value
+        });
+        $("cu").value = $("cn").value = $("cdoor").value = $("cp").value = "";
+        $("cmsg").textContent = "Account created successfully.";
+        loadUsers();
+      } catch (e) {
+        $("cmsg").textContent = e.message;
+      }
+    };
+
+    // User Modal Logic
+    function openEditUserModal(u) {
+      $("editUserId").value = u.id;
+      $("editUserUsername").value = u.username;
+      $("editUserName").value = u.name;
+      $("editUserDoor").value = u.door || "";
+      $("editUserRole").value = u.role;
+      $("editUserActive").value = u.active ? "true" : "false";
+      $("editUserPassword").value = "";
+      $("userModalTitle").textContent = (currentUser && currentUser.id === u.id) ? "Edit My Admin Account" : `Edit User (@${u.username})`;
+      $("userModalError").classList.add("hide");
+      $("userModal").classList.remove("hide");
+      $("editUserUsername").focus();
+    }
+
+    function openSelfEditModal() {
+      if (!currentUser) return alert("Current user not loaded yet. Try again in a moment.");
+      const selfObj = allUsersCache.find(u => u.id === currentUser.id) || currentUser;
+      openEditUserModal(selfObj);
+    }
+
+    function closeUserModal() {
+      $("userModal").classList.add("hide");
+    }
+
+    async function saveUserModal() {
+      const id = $("editUserId").value;
+      const username = $("editUserUsername").value.trim();
+      const name = $("editUserName").value.trim();
+      const door = $("editUserDoor").value.trim();
+      const role = $("editUserRole").value;
+      const active = $("editUserActive").value === "true";
+      const password = $("editUserPassword").value.trim();
+
+      const errElem = $("userModalError");
+      errElem.classList.add("hide");
+
+      if (!username || !name) {
+        errElem.textContent = "Username and full name are required.";
+        errElem.classList.remove("hide");
+        return;
+      }
+
+      if (password && password.length < 6) {
+        errElem.textContent = "New password must be at least 6 characters.";
+        errElem.classList.remove("hide");
+        return;
+      }
+
+      try {
+        const payload = { username, name, door, role, active };
+        if (password) payload.password = password;
+
+        await api("/api/users/" + encodeURIComponent(id), "PUT", payload);
+        closeUserModal();
+        alert("Account updated successfully.");
+        await loadCurrentAdmin();
+        loadUsers();
+      } catch (e) {
+        errElem.textContent = e.message;
+        errElem.classList.remove("hide");
+      }
+    }
+
+    // Students & Filtering
+    function setStudentFilter(fil) {
+      currentStudentFilter = fil;
+      ["all", "cafe", "noncafe", "blocked"].forEach(f => {
+        const btnElem = $("fil-" + f);
+        if (btnElem) btnElem.classList.toggle("on", f === fil || (fil === "non_cafe" && f === "noncafe"));
+      });
+      renderStudentTable();
+    }
+
+    async function loadStudents() {
+      try {
+        allStudentsCache = await api("/api/students");
+        populateDepartmentFilter();
+        const blockedStudents = allStudentsCache.filter(s => s.blocked);
+        const cafeStudents = allStudentsCache.filter(s => s.cafe_status !== "non_cafe");
+        const nonCafeStudents = allStudentsCache.filter(s => s.cafe_status === "non_cafe");
+
+        $("cafeCountBadge").textContent = `${cafeStudents.length} Café (Dining)`;
+        $("nonCafeCountBadge").textContent = `${nonCafeStudents.length} Non-Café`;
+
+        const bSummary = $("blockedSummary");
+        const bAlert = $("blockedAlert");
+
+        if (blockedStudents.length > 0) {
+          bSummary.className = "status-pill";
+          bSummary.style.backgroundColor = "var(--bad-bg)";
+          bSummary.style.color = "var(--bad-text)";
+          bSummary.textContent = `🚨 ${blockedStudents.length} Blocked`;
+          bAlert.innerHTML = `⚠️ <strong>${blockedStudents.length} student(s) currently blocked from feeding</strong> due to duplicate meal attempts. Review and click "Unblock" to restore their access.`;
+          bAlert.classList.remove("hide");
+        } else {
+          bSummary.className = "status-pill pill-open";
+          bSummary.textContent = "0 Blocked";
+          bAlert.classList.add("hide");
+        }
+
+        renderStudentTable();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderStudentTable() {
+      let filtered = allStudentsCache;
+      if (currentStudentFilter === "cafe") {
+        filtered = allStudentsCache.filter(s => s.cafe_status !== "non_cafe");
+      } else if (currentStudentFilter === "non_cafe") {
+        filtered = allStudentsCache.filter(s => s.cafe_status === "non_cafe");
+      } else if (currentStudentFilter === "blocked") {
+        filtered = allStudentsCache.filter(s => s.blocked);
+      }
+
+      if (filtered.length === 0) {
+        $("stubody").innerHTML = `<tr><td colspan="8" class="muted" style="text-align: center; padding: 20px;">No students found matching current filter.</td></tr>`;
+        return;
+      }
+
+      $("stubody").replaceChildren(...filtered.map((s) => {
+        // ID
+        const idCell = document.createElement("span");
+        idCell.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+        idCell.style.fontWeight = "700";
+        idCell.style.color = "var(--primary)";
+        idCell.style.whiteSpace = "nowrap";
+        idCell.textContent = s.id;
+
+        // Name
+        const nameCell = document.createElement("div");
+        nameCell.style.fontWeight = "600";
+        nameCell.style.whiteSpace = "nowrap";
+        nameCell.textContent = s.name;
+
+        // Department
+        const deptCell = document.createElement("span");
+        deptCell.style.whiteSpace = "nowrap";
+        deptCell.textContent = s.department || "-";
+
+        // Year
+        const yearCell = document.createElement("span");
+        yearCell.style.fontWeight = "600";
+        yearCell.style.textAlign = "center";
+        yearCell.textContent = s.year ? "Yr " + s.year : "-";
+
+        // NFC Card UID
+        const cardCell = document.createElement("span");
+        cardCell.style.fontFamily = "monospace";
+        cardCell.style.fontSize = "0.85rem";
+        cardCell.style.color = "var(--text-muted)";
+        cardCell.style.whiteSpace = "nowrap";
+        cardCell.textContent = s.card_uid || "-";
+
+        // Dining Status Pill
+        const diningSpan = document.createElement("div");
+        const isNonCafe = s.cafe_status === "non_cafe";
+        if (isNonCafe) {
+          diningSpan.innerHTML = `
+            <span class="status-pill" style="background-color: var(--bad-bg); color: var(--bad-text); font-weight: 700; white-space: nowrap;">
+              🔴 Non-Café
+            </span>
+          `;
+        } else {
+          diningSpan.innerHTML = `
+            <span class="status-pill pill-open" style="white-space: nowrap;">
+              <span class="pulse-dot green" style="width: 7px; height: 7px;"></span> Café
+            </span>
+          `;
+        }
+
+        // Feeding Status Pill
+        const statusSpan = document.createElement("div");
+        if (s.blocked) {
+          statusSpan.innerHTML = `
+            <span class="status-pill" style="background-color: var(--bad-bg); color: var(--bad-text); font-weight: bold; white-space: nowrap;">
+              🔴 BLOCKED
+            </span>
+            <div class="muted" style="font-size: 0.78rem; margin-top: 2px;" title="${s.block_reason}">
+              ${s.block_reason || "Took meal twice"}
+            </div>
+          `;
+        } else {
+          statusSpan.innerHTML = `
+            <span class="status-pill pill-open" style="white-space: nowrap;">
+              <span class="pulse-dot green" style="width: 7px; height: 7px;"></span> Eligible
+            </span>
+          `;
+        }
+
+        // Action buttons: horizontal row
+        const actions = document.createElement("span");
+        actions.className = "table-actions";
+
+        // 1. Edit Student
+        actions.append(btn("✏️ Edit", () => openEditStudentModal(s), "alt"));
+
+        // 2. Toggle Cafe / Non-Cafe
+        const toggleBtn = btn(isNonCafe ? "⇄ Set Café" : "⇄ Set Non-Café", async () => {
+          const actionText = isNonCafe ? "change to CAFÉ (campus dining)" : "change to NON-CAFÉ (off-campus allowance)";
+          if (confirm(`Are you sure you want to ${actionText} for ${s.name}?`)) {
+            await api(`/api/students/${encodeURIComponent(s.id)}/toggle-cafe`, "POST");
+            loadStudents();
+          }
+        }, "alt");
+        actions.append(toggleBtn);
+
+        // 3. Block / Unblock
+        if (s.blocked) {
+          const unblockBtn = btn("🔓 Unblock", async () => {
+            if (confirm(`Unblock ${s.name} (${s.id}) to allow feeding again?`)) {
+              await api(`/api/students/${encodeURIComponent(s.id)}/unblock`, "POST");
+              loadStudents();
+            }
+          }, "success");
+          actions.append(unblockBtn);
+        } else {
+          const blockBtn = btn("🔒 Block", async () => {
+            const reason = prompt(`Enter reason to suspend ${s.name}:`, "Manual administrative block");
+            if (!reason) return;
+            await api(`/api/students/${encodeURIComponent(s.id)}/block`, "POST", { reason });
+            loadStudents();
+          }, "alt");
+          actions.append(blockBtn);
+        }
+
+        // 4. Remove Student
+        const rmBtn = btn("🗑️ Delete", async () => {
+          if (confirm("Remove student " + s.name + " (" + s.id + ") permanently?")) {
+            await api("/api/students/" + encodeURIComponent(s.id), "DELETE");
+            loadStudents();
+          }
+        }, "danger");
+        actions.append(rmBtn);
+
+        return row([
+          idCell,
+          nameCell,
+          deptCell,
+          yearCell,
+          cardCell,
+          diningSpan,
+          statusSpan,
+          actions
+        ]);
+      }));
+    }
+
+    // Student Modal Logic
+    function openEditStudentModal(s) {
+      $("editStudentOrigId").value = s.id;
+      $("editStudentId").value = s.id;
+      $("editStudentName").value = s.name;
+      $("editStudentDept").value = s.department || "";
+      $("editStudentYear").value = s.year || "";
+      $("editStudentCard").value = s.card_uid || "";
+      $("editStudentCafe").value = s.cafe_status === "non_cafe" ? "non_cafe" : "cafe";
+      $("editStudentBlocked").value = s.blocked ? "true" : "false";
+      $("editStudentBlockReason").value = s.block_reason || "";
+      $("editBlockReasonGroup").classList.toggle("hide", !s.blocked);
+      $("studentModalError").classList.add("hide");
+      $("studentModal").classList.remove("hide");
+      $("editStudentName").focus();
+    }
+
+    function closeStudentModal() {
+      $("studentModal").classList.add("hide");
+    }
+
+    async function saveStudentModal() {
+      const origId = $("editStudentOrigId").value;
+      const newId = $("editStudentId").value.trim().toUpperCase();
+      const name = $("editStudentName").value.trim();
+      const department = $("editStudentDept").value.trim();
+      const year = $("editStudentYear").value.trim();
+      const card_uid = $("editStudentCard").value.trim();
+      const cafe_status = $("editStudentCafe").value;
+      const blocked = $("editStudentBlocked").value === "true";
+      const block_reason = $("editStudentBlockReason").value.trim();
+
+      const errElem = $("studentModalError");
+      errElem.classList.add("hide");
+
+      if (!newId || !name) {
+        errElem.textContent = "Student ID and Full Name are required.";
+        errElem.classList.remove("hide");
+        return;
+      }
+
+      try {
+        await api("/api/students/" + encodeURIComponent(origId), "PUT", {
+          id: newId,
+          name,
+          department,
+          year,
+          card_uid,
+          cafe_status,
+          blocked,
+          block_reason
+        });
+        closeStudentModal();
+        alert("Student updated successfully.");
+        loadStudents();
+      } catch (e) {
+        errElem.textContent = e.message;
+        errElem.classList.remove("hide");
+      }
+    }
+
+    $("sadd").onclick = async () => {
+      try {
+        await api("/api/students", "POST", {
+          id: $("sid").value,
+          name: $("sname").value,
+          department: $("sdept").value,
+          year: $("syear").value,
+          card_uid: $("scard").value,
+          cafe_status: $("scafe").value
+        });
+        $("sid").value = $("sname").value = $("sdept").value = $("syear").value = $("scard").value = "";
+        $("smsg").textContent = "Student added successfully.";
+        loadStudents();
+      } catch (e) {
+        $("smsg").textContent = e.message;
+      }
+    };
+
+    $("simp").onclick = async () => {
+      const csvVal = $("csv").value.trim();
+      if (!csvVal) return alert("Please paste CSV data first.");
+      try {
+        const d = await api("/api/students/import", "POST", { csv: csvVal });
+        $("csv").value = "";
+        alert("Successfully imported " + d.imported + " student records.");
+        loadStudents();
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    // Close modals on Escape key
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeUserModal();
+        closeStudentModal();
+      }
+    });
+
+    generateReport();
+    loadStudents();
+  </script>
+</body>
+</html>

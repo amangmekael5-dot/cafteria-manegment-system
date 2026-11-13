@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Login - Dire Dawa University Cafeteria</title>
+  <meta name="theme-color" content="#154c79" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DDU Cafeteria">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="stylesheet" href="/style.css">
+  <script>
+    (function() {
+      const s = localStorage.getItem("ddu_theme");
+      const p = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      if (s === "dark" || (!s && p)) document.documentElement.setAttribute("data-theme", "dark");
+    })();
+  </script>
+</head>
+<body style="min-height: 100vh; display: flex; flex-direction: column; justify-content: center;">
+  <div style="display: flex; justify-content: space-between; align-items: center; max-width: 440px; margin: 0 auto 10px auto; width: 100%;">
+    <button class="alt back-btn" onclick="goBack()" title="Go back (Backspace)">← Back</button>
+    <button class="alt theme-toggle-btn" onclick="toggleTheme()">🌙 Dark</button>
+  </div>
+
+  <div class="card" style="max-width: 440px; margin: 0 auto; width: 100%; padding: 32px 24px; text-align: center;">
+    <img src="/logo.png" alt="Dire Dawa University Logo" style="width: 90px; height: 90px; object-fit: contain; margin-bottom: 12px; border-radius: 50%; box-shadow: 0 4px 12px rgba(0,0,0,0.12); padding: 4px; background: #ffffff;">
+    <div class="brand-univ" style="font-size: 0.95rem; margin-bottom: 2px;">Dire Dawa University · ድሬዳዋ ዩኒቨርሲቲ</div>
+    <h1 style="font-size: 1.45rem; font-weight: 800; margin-bottom: 20px;">Cafeteria Portal</h1>
+
+    <div style="text-align: left; display: flex; flex-direction: column; gap: 12px;">
+      <div>
+        <label for="u" style="font-size: 0.88rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">Staff Username</label>
+        <input id="u" placeholder="e.g. admin or checker username" autocomplete="username" style="width: 100%; margin: 0;">
+      </div>
+      <div>
+        <label for="p" style="font-size: 0.88rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 4px;">Password</label>
+        <input id="p" type="password" placeholder="••••••••" autocomplete="current-password" style="width: 100%; margin: 0;">
+      </div>
+      <button id="go" style="width: 100%; padding: 12px; font-size: 1.05rem; margin-top: 8px;">
+        Sign In to Dashboard
+      </button>
+      <div id="err" class="res bad hide" style="text-align: center;"></div>
+    </div>
+
+    <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border-color); font-size: 0.9rem;">
+      <span class="muted">Are you a student?</span><br>
+      <a href="/student" style="color: var(--primary); font-weight: 600; text-decoration: none; display: inline-block; margin-top: 6px;">
+        📱 Open Student Cafeteria Pass →
+      </a>
+    </div>
+  </div>
+
+  <footer style="text-align: center; margin-top: 24px;" class="muted">
+    Dire Dawa University &copy; 2026 · Smart Cafeteria Management System
+  </footer>
+
+  <script src="/app.js"></script>
+  <script>
+    async function login() {
+      const u = $("u").value.trim();
+      const p = $("p").value;
+      if (!u || !p) {
+        $("err").textContent = "Please enter both username and password.";
+        $("err").classList.remove("hide");
+        return;
+      }
+      $("go").disabled = true;
+      $("go").textContent = "Signing in...";
+      try {
+        const r = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: u, password: p }),
+        });
+        const d = await r.json();
+        if (r.ok) {
+          location = d.role === "admin" ? "/admin" : "/checker";
+        } else {
+          $("err").textContent = d.error || "Login failed";
+          $("err").classList.remove("hide");
+        }
+      } catch (e) {
+        $("err").textContent = "Network error: " + e.message;
+        $("err").classList.remove("hide");
+      } finally {
+        $("go").disabled = false;
+        $("go").textContent = "Sign In to Dashboard";
+      }
+    }
+    $("go").onclick = login;
+    $("p").onkeydown = (e) => { if (e.key === "Enter") login(); };
+    $("u").onkeydown = (e) => { if (e.key === "Enter") $("p").focus(); };
+    $("u").focus();
+  </script>
+</body>
+</html>
